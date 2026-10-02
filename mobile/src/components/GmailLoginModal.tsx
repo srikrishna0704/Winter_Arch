@@ -26,8 +26,8 @@ export const GmailLoginModal: React.FC<GmailLoginModalProps> = ({
   onLoginSuccess,
   onLogoutSuccess
 }) => {
-  const [gmailAddress, setGmailAddress] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [gmailAddress, setGmailAddress] = useState('srikrishna@gmail.com');
+  const [displayName, setDisplayName] = useState('Chaitanya');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -152,6 +152,16 @@ export const GmailLoginModal: React.FC<GmailLoginModalProps> = ({
               <Text style={styles.infoDesc}>
                 Enter your Gmail account to isolate and permanently store your monthly habit sheets, sleep logs, and goal details in MongoDB Atlas.
               </Text>
+
+              <TouchableOpacity
+                style={styles.quickPresetBtn}
+                onPress={() => {
+                  setGmailAddress('srikrishna@gmail.com');
+                  setDisplayName('Chaitanya');
+                }}
+              >
+                <Text style={styles.quickPresetText}>⚡ DEFAULT PROFILE: CHAITANYA (srikrishna@gmail.com)</Text>
+              </TouchableOpacity>
 
               {errorMsg ? <Text style={styles.errorText}>{errorMsg}</Text> : null}
 
@@ -390,5 +400,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1
+  },
+  quickPresetBtn: {
+    backgroundColor: '#161B26',
+    borderWidth: 1,
+    borderColor: '#4285F4',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: SPACING.md,
+    alignItems: 'center'
+  },
+  quickPresetText: {
+    color: '#8BCEFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8
   }
 });

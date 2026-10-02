@@ -37,7 +37,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const loadedMonthKeyRef = useRef<string>(activeMonthKey);
 
   // Profile Details
-  const [name, setName] = useState('Alex Vance');
+  const [name, setName] = useState('Chaitanya');
   const [startDate, setStartDate] = useState(`01 / ${String(selectedMonthIdx + 1).padStart(2, '0')} / ${selectedYear}`);
 
   // 10 Habits List
@@ -74,14 +74,34 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const [showGmailModal, setShowGmailModal] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Check Auth on Mount
+  // Check Auth on Mount: Auto-login as Chaitanya (srikrishna@gmail.com) if no active user
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await getAuthToken();
+        let token = await getAuthToken();
+        if (!token) {
+          const res = await apiRequest('/auth/google', 'POST', {
+            email: 'srikrishna@gmail.com',
+            name: 'Chaitanya',
+            googleId: 'google_srikrishna_default',
+            picture: 'https://api.dicebear.com/7.x/bottts/svg?seed=Chaitanya'
+          });
+          if (res && (res.user || res.token)) {
+            if (res.token) await setAuthToken(res.token);
+            const activeUser = res.user || {
+              _id: 'user_gmail_srikrishna_gmail_com',
+              email: 'srikrishna@gmail.com',
+              name: 'Chaitanya'
+            };
+            setCurrentUser(activeUser);
+            setName('Chaitanya');
+            handleSwitchMonth(selectedYear, selectedMonthIdx);
+            return;
+          }
+        }
         if (token) {
           const res = await apiRequest('/auth/me');
-          if (res.success && res.user) {
+          if (res && res.success && res.user) {
             setCurrentUser(res.user);
             if (res.user.name) setName(res.user.name);
           }
@@ -170,7 +190,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
       const res = await apiRequest(`/tracker/${newMonthKey}`);
       if (res.success && res.tracker) {
         const t = res.tracker;
-        setName(t.name || 'Alex Vance');
+        setName(t.name || 'Chaitanya');
         setStartDate(t.startDate || `${newMonthKey}-01`);
         if (t.habits && t.habits.length === 10) setHabits(t.habits);
         setHabitGrid(t.habitGrid || {});
