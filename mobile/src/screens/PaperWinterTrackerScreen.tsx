@@ -120,9 +120,12 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const [modalWakeTime, setModalWakeTime] = useState('06:45');
   const [modalQuality, setModalQuality] = useState<'Restless' | 'Good' | 'Deep'>('Good');
 
-  // Save specific Month Data to MongoDB Atlas
+  // Save specific Month Data to MongoDB Atlas & Local Storage
   const saveMonthDataToBackend = async (mKey: string, payload: any) => {
     try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(`winter_arc_sheet_${mKey}`, JSON.stringify(payload));
+      }
       const res = await apiRequest(`/tracker/${mKey}`, 'POST', payload);
       if (res.success) {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -178,13 +181,41 @@ export const PaperWinterTrackerScreen: React.FC = () => {
     setSelectedMonthIdx(newMonthIdx);
     loadedMonthKeyRef.current = newMonthKey;
 
-    // 3. CLEAR MEMORY STATE BEFORE LOADING TARGET MONTH
-    setHabitGrid({});
-    setSleepEntries({});
-    setMonthlyGoal('');
-    setAchievedThisMonth('');
-    setShouldImprove('');
-    setHabitDetailsMap({});
+    // 3. INSTANT LOCAL STORAGE CACHE LOAD (0ms latency)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const cached = window.localStorage.getItem(`winter_arc_sheet_${newMonthKey}`);
+        if (cached) {
+          const t = JSON.parse(cached);
+          if (t.name) setName(t.name);
+          if (t.startDate) setStartDate(t.startDate);
+          if (t.habits && t.habits.length === 10) setHabits(t.habits);
+          setHabitGrid(t.habitGrid || {});
+          setSleepEntries(t.sleepGrid || t.sleepEntries || {});
+          setMonthlyGoal(t.monthlyGoal || '');
+          setAchievedThisMonth(t.achievedThisMonth || '');
+          setShouldImprove(t.shouldImprove || '');
+          if (t.habitDetailsMap) setHabitDetailsMap(t.habitDetailsMap);
+        } else {
+          setHabitGrid({});
+          setSleepEntries({});
+          setMonthlyGoal('');
+          setAchievedThisMonth('');
+          setShouldImprove('');
+          setHabitDetailsMap({});
+        }
+      } catch (e) {
+        setHabitGrid({});
+        setSleepEntries({});
+      }
+    } else {
+      setHabitGrid({});
+      setSleepEntries({});
+      setMonthlyGoal('');
+      setAchievedThisMonth('');
+      setShouldImprove('');
+      setHabitDetailsMap({});
+    }
 
     setSaveStatusMsg(`LOADING ${MONTH_NAMES[newMonthIdx].toUpperCase()} ${newYear}...`);
 
@@ -202,6 +233,10 @@ export const PaperWinterTrackerScreen: React.FC = () => {
         setAchievedThisMonth(t.achievedThisMonth || '');
         setShouldImprove(t.shouldImprove || '');
         if (t.habitDetailsMap) setHabitDetailsMap(t.habitDetailsMap);
+
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(`winter_arc_sheet_${newMonthKey}`, JSON.stringify(t));
+        }
       }
       setSaveStatusMsg(`LOADED & SYNCED WITH MONGODB 🟢`);
     } catch (err) {

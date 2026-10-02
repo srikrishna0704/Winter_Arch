@@ -120,10 +120,12 @@ export const googleLogin = async (req, res) => {
     }
 
     const cleanEmail = userEmail.toLowerCase().trim();
+    const userId = 'user_gmail_' + cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
     let user = await UserDb.findOne({ email: cleanEmail });
 
     if (!user) {
       user = await UserDb.insertOne({
+        _id: userId,
         email: cleanEmail,
         name: userName || cleanEmail.split('@')[0],
         googleId: userGId || `gid_${Date.now()}`,
@@ -132,7 +134,7 @@ export const googleLogin = async (req, res) => {
         createdAt: new Date().toISOString()
       });
     } else {
-      user = await UserDb.updateOne({ _id: user._id || user.id }, {
+      user = await UserDb.updateOne({ _id: user._id || userId }, {
         googleId: userGId || user.googleId || `gid_${Date.now()}`,
         avatar: userPicture || user.avatar,
         authProvider: 'google',
@@ -140,7 +142,7 @@ export const googleLogin = async (req, res) => {
       });
     }
 
-    const token = generateToken(user._id || user.id);
+    const token = generateToken(user._id || userId);
     const { passwordHash: _, ...userWithoutPassword } = user;
 
     res.json({
