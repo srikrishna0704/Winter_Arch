@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+mobile/node_modules/
+
+# Build & Dist
+dist/
+mobile/dist/
+build/
+.expo/
+
+# Environment & Secrets (Keep .env.example if needed)
+backend/.env
+.env
+.env.local
+
+# Logs & Database temporary storage
+*.log
+data/*.json
+backend/data/*.json
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
