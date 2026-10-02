@@ -618,15 +618,17 @@ export const PaperWinterTrackerScreen: React.FC = () => {
                         key={d}
                         style={[
                           styles.checkCell,
-                          isChecked && styles.checkCellActive,
                           isToday && styles.checkCellToday,
-                          isLocked && styles.checkCellLocked
+                          isLocked && styles.checkCellLocked,
+                          isChecked && styles.checkCellActive
                         ]}
                         onPress={() => toggleHabitCell(hIdx, d)}
                         activeOpacity={isLocked ? 0.9 : 0.7}
                       >
                         {isChecked ? (
                           <Text style={styles.checkMarkText}>✓</Text>
+                        ) : isToday ? (
+                          <Text style={styles.todayStarText}>★</Text>
                         ) : isLocked ? (
                           <Text style={styles.lockDotText}>•</Text>
                         ) : null}
@@ -1179,7 +1181,8 @@ const styles = StyleSheet.create({
   },
   checkCellActive: {
     backgroundColor: '#00FF66',
-    borderColor: '#00FF66'
+    borderColor: '#00FF66',
+    boxShadow: '0 0 10px rgba(0, 255, 102, 0.6)'
   },
   checkCellToday: {
     borderWidth: 1.5,
@@ -1192,8 +1195,15 @@ const styles = StyleSheet.create({
     borderColor: '#1C1F2B'
   },
   checkMarkText: {
-    color: '#000',
-    fontSize: 12,
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 16,
+    textAlign: 'center'
+  },
+  todayStarText: {
+    color: '#00FF66',
+    fontSize: 10,
     fontWeight: '900'
   },
   lockDotText: {
