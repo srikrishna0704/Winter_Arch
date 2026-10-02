@@ -261,6 +261,15 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   }, [habitGrid, sleepEntries, monthlyGoal, habitDetailsMap, achievedThisMonth, shouldImprove, habits]);
 
   const toggleHabitCell = (hIdx: number, day: number) => {
+    // If viewing the current active month, restrict logging strictly to Today (currentRealDay)
+    if (isCurrentActiveMonth && day !== currentRealDay) {
+      setSaveStatusMsg(`🔒 DISCIPLINE LOCK: ONLY TODAY (DAY ${currentRealDay}) IS EDITABLE! ⚠️`);
+      setTimeout(() => {
+        setSaveStatusMsg('SYNCHRONIZED WITH MONGODB 🟢');
+      }, 2500);
+      return;
+    }
+
     const key = `${hIdx}_${day}`;
     setHabitGrid(prev => {
       const updatedGrid = {
@@ -283,6 +292,13 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   };
 
   const openSleepModalForDay = (day: number) => {
+    if (isCurrentActiveMonth && day !== currentRealDay) {
+      setSaveStatusMsg(`🔒 DISCIPLINE LOCK: ONLY TODAY (DAY ${currentRealDay}) SLEEP IS EDITABLE! ⚠️`);
+      setTimeout(() => {
+        setSaveStatusMsg('SYNCHRONIZED WITH MONGODB 🟢');
+      }, 2500);
+      return;
+    }
     setSelectedSleepDay(day);
     const existing = sleepEntries[day];
     if (existing) {
@@ -386,9 +402,38 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const daysArray = Array.from({ length: 31 }, (_, i) => i + 1);
   const sleepHoursList = [10, 9, 8, 7, 6, 5, 4];
 
-  let totalChecked = 0;
-  Object.values(habitGrid).forEach(v => { if (v) totalChecked++; });
-  const habitCompletionRate = Math.round((totalChecked / (10 * 31)) * 100) || 0;
+  // Current real date calculation
+  const now = new Date();
+  const currentRealYear = now.getFullYear();
+  const currentRealMonthIdx = now.getMonth();
+  const currentRealDay = now.getDate();
+
+  const isCurrentActiveMonth = (selectedYear === currentRealYear && selectedMonthIdx === currentRealMonthIdx);
+
+  // Parse custom startDayNum from startDate (e.g. "01 / 10 / 2026" -> 1)
+  let startDayNum = 1;
+  if (startDate) {
+    const firstPart = startDate.split('/')[0]?.trim();
+    const parsed = parseInt(firstPart, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 31) {
+      startDayNum = parsed;
+    }
+  }
+
+  // Active tracking days from custom Start Date to end of month (31)
+  const activeDaysCount = Math.max(1, 31 - startDayNum + 1);
+
+  // Count habits checked starting from startDayNum onwards
+  let totalCheckedFromStart = 0;
+  for (let hIdx = 0; hIdx < 10; hIdx++) {
+    for (let d = startDayNum; d <= 31; d++) {
+      if (habitGrid[`${hIdx}_${d}`]) {
+        totalCheckedFromStart++;
+      }
+    }
+  }
+
+  const habitCompletionRate = Math.round((totalCheckedFromStart / (10 * activeDaysCount)) * 100) || 0;
 
   const validSleeps = Object.values(sleepEntries).map(s => s.durationHours);
   const avgSleep = validSleeps.length > 0 
@@ -530,11 +575,16 @@ export const PaperWinterTrackerScreen: React.FC = () => {
                 <View style={styles.habitNameColHeader}>
                   <Text style={styles.headerColText}>HABITS & GOAL BUTTON</Text>
                 </View>
-                {daysArray.map((d) => (
-                  <View key={d} style={styles.dayHeaderCell}>
-                    <Text style={styles.dayHeaderText}>{d}</Text>
-                  </View>
-                ))}
+                {daysArray.map((d) => {
+                  const isToday = isCurrentActiveMonth && d === currentRealDay;
+                  return (
+                    <View key={d} style={[styles.dayHeaderCell, isToday && styles.dayHeaderCellToday]}>
+                      <Text style={[styles.dayHeaderText, isToday && styles.dayHeaderTextToday]}>
+                        {d}{isToday ? '★' : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
 
               {habits.map((habitName, hIdx) => (
@@ -560,14 +610,26 @@ export const PaperWinterTrackerScreen: React.FC = () => {
 
                   {daysArray.map((d) => {
                     const isChecked = !!habitGrid[`${hIdx}_${d}`];
+                    const isToday = isCurrentActiveMonth && d === currentRealDay;
+                    const isLocked = isCurrentActiveMonth && d !== currentRealDay;
+
                     return (
                       <TouchableOpacity
                         key={d}
-                        style={[styles.checkCell, isChecked && styles.checkCellActive]}
+                        style={[
+                          styles.checkCell,
+                          isChecked && styles.checkCellActive,
+                          isToday && styles.checkCellToday,
+                          isLocked && styles.checkCellLocked
+                        ]}
                         onPress={() => toggleHabitCell(hIdx, d)}
-                        activeOpacity={0.7}
+                        activeOpacity={isLocked ? 0.9 : 0.7}
                       >
-                        {isChecked && <Text style={styles.checkMarkText}>✓</Text>}
+                        {isChecked ? (
+                          <Text style={styles.checkMarkText}>✓</Text>
+                        ) : isLocked ? (
+                          <Text style={styles.lockDotText}>•</Text>
+                        ) : null}
                       </TouchableOpacity>
                     );
                   })}
@@ -1050,12 +1112,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRightWidth: 1,
-    borderRightColor: '#232730'
+    borderRightColor: '#282C38'
+  },
+  dayHeaderCellToday: {
+    backgroundColor: 'rgba(0, 255, 102, 0.25)',
+    borderWidth: 1.5,
+    borderColor: '#00FF66',
+    borderRadius: 4
   },
   dayHeaderText: {
     color: '#9CA3AF',
     fontSize: 10,
     fontWeight: '800'
+  },
+  dayHeaderTextToday: {
+    color: '#00FF66',
+    fontWeight: '900'
   },
   habitNameCol: {
     width: 230,
@@ -1097,22 +1169,36 @@ const styles = StyleSheet.create({
   checkCell: {
     width: 28,
     height: 28,
-    backgroundColor: '#181B21',
+    backgroundColor: '#0D0E14',
     borderRadius: 4,
     marginHorizontal: 1,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#232730'
+    borderColor: '#2A2E3D'
   },
   checkCellActive: {
-    backgroundColor: '#22C55E',
-    borderColor: '#22C55E'
+    backgroundColor: '#00FF66',
+    borderColor: '#00FF66'
+  },
+  checkCellToday: {
+    borderWidth: 1.5,
+    borderColor: '#00FF66',
+    backgroundColor: 'rgba(0, 255, 102, 0.12)'
+  },
+  checkCellLocked: {
+    opacity: 0.5,
+    backgroundColor: '#07080B',
+    borderColor: '#1C1F2B'
   },
   checkMarkText: {
-    color: '#FFF',
+    color: '#000',
     fontSize: 12,
     fontWeight: '900'
+  },
+  lockDotText: {
+    color: '#2C303E',
+    fontSize: 10
   },
   sleepHeaderCol: {
     width: 230,
