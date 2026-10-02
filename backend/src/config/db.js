@@ -11,28 +11,26 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-let isMongoConnected = false;
-
 export const connectMongoDB = async () => {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    console.log('[DB] No MONGODB_URI set, using embedded JSON database engine.');
+    console.log('[DB] No MONGODB_URI set, using local JSON database engine.');
     return false;
+  }
+
+  if (mongoose.connection && mongoose.connection.readyState === 1) {
+    return true;
   }
 
   try {
     console.log('[DB] Connecting to MongoDB Atlas Cluster...');
     await mongoose.connect(uri, { serverSelectionTimeoutMS: 5000 });
-    isMongoConnected = true;
     console.log('==================================================');
     console.log('🟢 CONNECTED SUCCESSFULLY TO MONGODB ATLAS CLUSTER!');
-    console.log('   Cluster: cluster0.wow1g1b.mongodb.net');
-    console.log('   Database: winter_arc');
     console.log('==================================================');
     return true;
   } catch (err) {
-    console.warn('⚠️ MongoDB Atlas connection attempt warning (using hybrid persistent store):', err.message);
-    isMongoConnected = false;
+    console.warn('⚠️ MongoDB Atlas connection warning:', err.message);
     return false;
   }
 };
@@ -92,10 +90,6 @@ class JsonDatabase {
     return newDoc;
   }
 
-  insertMany(docs) {
-    return docs.map(doc => this.insertOne(doc));
-  }
-
   updateOne(query, updates) {
     const index = this.data.findIndex(item => {
       for (const key in query) {
@@ -126,43 +120,93 @@ class JsonDatabase {
     }
     return null;
   }
+}
 
-  deleteOne(query) {
-    const index = this.data.findIndex(item => {
-      for (const key in query) {
-        if (query[key] !== undefined && item[key] !== query[key]) {
-          return false;
-        }
-      }
-      return true;
-    });
+const mongooseModels = {};
 
-    if (index !== -1) {
-      const deleted = this.data.splice(index, 1)[0];
-      this._saveData();
-      return deleted;
+function getMongooseModel(collectionName) {
+  if (mongooseModels[collectionName]) return mongooseModels[collectionName];
+  const schema = new mongoose.Schema({}, { strict: false, timestamps: true });
+  const model = mongoose.models[collectionName] || mongoose.model(collectionName, schema, collectionName);
+  mongooseModels[collectionName] = model;
+  return model;
+}
+
+class HybridDatabase {
+  constructor(collectionName) {
+    this.collectionName = collectionName;
+    this.jsonDb = new JsonDatabase(collectionName);
+  }
+
+  isMongoActive() {
+    return mongoose.connection && mongoose.connection.readyState === 1;
+  }
+
+  get model() {
+    return getMongooseModel(this.collectionName);
+  }
+
+  async find(query = {}) {
+    if (this.isMongoActive()) {
+      const results = await this.model.find(query).lean();
+      return results.map(doc => ({ ...doc, _id: doc._id.toString(), id: doc._id.toString() }));
     }
-    return null;
+    return this.jsonDb.find(query);
   }
 
-  deleteMany(query = {}) {
-    const initialLen = this.data.length;
-    this.data = this.data.filter(item => {
-      for (const key in query) {
-        if (query[key] !== undefined && item[key] !== query[key]) {
-          return true;
-        }
+  async findOne(query = {}) {
+    if (this.isMongoActive()) {
+      const doc = await this.model.findOne(query).lean();
+      return doc ? { ...doc, _id: doc._id.toString(), id: doc._id.toString() } : null;
+    }
+    return this.jsonDb.findOne(query);
+  }
+
+  async findById(id) {
+    if (this.isMongoActive()) {
+      let doc = null;
+      try {
+        doc = await this.model.findById(id).lean();
+      } catch (e) {}
+      if (!doc) {
+        doc = await this.model.findOne({ $or: [{ _id: id }, { id }] }).lean();
       }
-      return false;
-    });
-    this._saveData();
-    return initialLen - this.data.length;
+      return doc ? { ...doc, _id: doc._id.toString(), id: doc._id.toString() } : null;
+    }
+    return this.jsonDb.findById(id);
   }
 
-  clear() {
-    this.data = [];
-    this._saveData();
+  async insertOne(doc) {
+    if (this.isMongoActive()) {
+      const id = doc._id || doc.id || 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      const created = await this.model.create({ _id: id, ...doc });
+      const obj = created.toObject();
+      return { ...obj, _id: obj._id.toString(), id: obj._id.toString() };
+    }
+    return this.jsonDb.insertOne(doc);
+  }
+
+  async updateOne(query, updates) {
+    if (this.isMongoActive()) {
+      const doc = await this.model.findOneAndUpdate(query, { $set: updates }, { new: true, upsert: true }).lean();
+      return doc ? { ...doc, _id: doc._id.toString(), id: doc._id.toString() } : null;
+    }
+    return this.jsonDb.updateOne(query, updates);
+  }
+
+  async updateById(id, updates) {
+    if (this.isMongoActive()) {
+      let doc = null;
+      try {
+        doc = await this.model.findByIdAndUpdate(id, { $set: updates }, { new: true }).lean();
+      } catch (e) {}
+      if (!doc) {
+        doc = await this.model.findOneAndUpdate({ $or: [{ _id: id }, { id }] }, { $set: updates }, { new: true }).lean();
+      }
+      return doc ? { ...doc, _id: doc._id.toString(), id: doc._id.toString() } : null;
+    }
+    return this.jsonDb.updateById(id, updates);
   }
 }
 
-export const getDb = (collection) => new JsonDatabase(collection);
+export const getDb = (collection) => new HybridDatabase(collection);

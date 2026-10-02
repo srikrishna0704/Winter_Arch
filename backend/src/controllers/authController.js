@@ -4,7 +4,7 @@ import { generateToken } from '../middleware/auth.js';
 
 const UserDb = getDb('users');
 
-export const register = (req, res) => {
+export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -12,7 +12,7 @@ export const register = (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide name, email, and password' });
     }
 
-    const existing = UserDb.findOne({ email: email.toLowerCase() });
+    const existing = await UserDb.findOne({ email: email.toLowerCase() });
     if (existing) {
       return res.status(400).json({ success: false, message: 'User already exists with this email' });
     }
@@ -20,7 +20,7 @@ export const register = (req, res) => {
     const salt = bcrypt.genSaltSync(10);
     const passwordHash = bcrypt.hashSync(password, salt);
 
-    const user = UserDb.insertOne({
+    const user = await UserDb.insertOne({
       name,
       email: email.toLowerCase(),
       passwordHash,
@@ -28,7 +28,7 @@ export const register = (req, res) => {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
     });
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id || user.id);
 
     const { passwordHash: _, ...userWithoutPassword } = user;
 
@@ -42,7 +42,7 @@ export const register = (req, res) => {
   }
 };
 
-export const login = (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -50,7 +50,7 @@ export const login = (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide email and password' });
     }
 
-    const user = UserDb.findOne({ email: email.toLowerCase() });
+    const user = await UserDb.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
@@ -60,7 +60,7 @@ export const login = (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id || user.id);
     const { passwordHash: _, ...userWithoutPassword } = user;
 
     res.json({
@@ -73,9 +73,9 @@ export const login = (req, res) => {
   }
 };
 
-export const getMe = (req, res) => {
+export const getMe = async (req, res) => {
   try {
-    const user = UserDb.findById(req.userId);
+    const user = await UserDb.findById(req.userId);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -87,7 +87,7 @@ export const getMe = (req, res) => {
   }
 };
 
-export const googleLogin = (req, res) => {
+export const googleLogin = async (req, res) => {
   try {
     const { email, name, picture, googleId, credential } = req.body;
     let userEmail = email;
@@ -120,10 +120,10 @@ export const googleLogin = (req, res) => {
     }
 
     const cleanEmail = userEmail.toLowerCase().trim();
-    let user = UserDb.findOne({ email: cleanEmail });
+    let user = await UserDb.findOne({ email: cleanEmail });
 
     if (!user) {
-      user = UserDb.insertOne({
+      user = await UserDb.insertOne({
         email: cleanEmail,
         name: userName || cleanEmail.split('@')[0],
         googleId: userGId || `gid_${Date.now()}`,
@@ -132,7 +132,7 @@ export const googleLogin = (req, res) => {
         createdAt: new Date().toISOString()
       });
     } else {
-      user = UserDb.updateOne({ _id: user._id }, {
+      user = await UserDb.updateOne({ _id: user._id || user.id }, {
         googleId: userGId || user.googleId || `gid_${Date.now()}`,
         avatar: userPicture || user.avatar,
         authProvider: 'google',
@@ -140,7 +140,7 @@ export const googleLogin = (req, res) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id || user.id);
     const { passwordHash: _, ...userWithoutPassword } = user;
 
     res.json({
@@ -152,4 +152,3 @@ export const googleLogin = (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-

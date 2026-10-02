@@ -20,9 +20,9 @@ app.use((req, res, next) => {
 });
 
 // Initialize database connection & seed demo data
-connectMongoDB().then(() => {
+connectMongoDB().then(async () => {
   try {
-    seedDatabase();
+    await seedDatabase();
   } catch (err) {
     console.error('Seed error:', err);
   }

@@ -2,12 +2,12 @@ import { getDb } from '../config/db.js';
 
 const TrackerDb = getDb('monthly_trackers');
 
-export const getMonthTracker = (req, res) => {
+export const getMonthTracker = async (req, res) => {
   try {
     const { monthKey } = req.params; // e.g. "2026-10"
     const userId = req.userId || 'alex_vance';
 
-    let tracker = TrackerDb.findOne({ userId, monthKey });
+    let tracker = await TrackerDb.findOne({ userId, monthKey });
 
     if (!tracker) {
       // Return clean fresh monthly tracker template
@@ -24,7 +24,7 @@ export const getMonthTracker = (req, res) => {
         'Daily Review'
       ];
 
-      tracker = TrackerDb.insertOne({
+      tracker = await TrackerDb.insertOne({
         userId,
         monthKey,
         name: 'Alex Vance',
@@ -51,21 +51,21 @@ export const getMonthTracker = (req, res) => {
   }
 };
 
-export const saveMonthTracker = (req, res) => {
+export const saveMonthTracker = async (req, res) => {
   try {
     const { monthKey } = req.params;
     const userId = req.userId || 'alex_vance';
 
-    let tracker = TrackerDb.findOne({ userId, monthKey });
+    let tracker = await TrackerDb.findOne({ userId, monthKey });
 
     if (!tracker) {
-      tracker = TrackerDb.insertOne({
+      tracker = await TrackerDb.insertOne({
         userId,
         monthKey,
         ...req.body
       });
     } else {
-      tracker = TrackerDb.updateById(tracker._id, req.body);
+      tracker = await TrackerDb.updateById(tracker._id || tracker.id, req.body);
     }
 
     res.json({ success: true, tracker });
@@ -74,10 +74,10 @@ export const saveMonthTracker = (req, res) => {
   }
 };
 
-export const getAllMonths = (req, res) => {
+export const getAllMonths = async (req, res) => {
   try {
     const userId = req.userId || 'alex_vance';
-    const trackers = TrackerDb.find({ userId });
+    const trackers = await TrackerDb.find({ userId });
     const months = trackers.map(t => t.monthKey);
     res.json({ success: true, months });
   } catch (err) {
