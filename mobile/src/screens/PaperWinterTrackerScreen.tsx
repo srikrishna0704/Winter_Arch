@@ -412,6 +412,30 @@ export const PaperWinterTrackerScreen: React.FC = () => {
           <Text style={styles.statTag}>AVG SLEEP: <Text style={{ color: '#8BCEFF' }}>{avgSleep} HRS</Text></Text>
         </View>
 
+        {/* PROMINENT GMAIL CLOUD AUTH BANNER */}
+        <TouchableOpacity 
+          style={[styles.headerAuthBanner, currentUser && styles.headerAuthBannerLoggedIn]} 
+          onPress={() => setShowGmailModal(true)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.authBannerLeft}>
+            <Text style={styles.authBannerGLogo}>G</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.authBannerTitle}>
+                {currentUser ? `BACKED UP TO GMAIL: ${currentUser.email.toUpperCase()}` : 'GMAIL CLOUD BACKUP & SYNCRONIZATION'}
+              </Text>
+              <Text style={styles.authBannerSub}>
+                {currentUser ? 'Click to manage your account or switch profiles' : 'Click here to sign in with your Gmail account & save habits permanently in MongoDB'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.authBannerBtn, currentUser && styles.authBannerBtnLoggedIn]}>
+            <Text style={styles.authBannerBtnText}>
+              {currentUser ? 'ACCOUNT SETTINGS ⚙️' : 'LOGIN WITH GMAIL 🔑'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         {/* GRID 1: 10 HABITS / 31 DAYS MATRIX */}
         <View style={styles.tableFrame}>
           <Text style={styles.tableSectionTitle}>10 HABITS / 31 DAYS MATRIX [{selectedMonthName.toUpperCase()} {selectedYear}] — CLICK [ 🔍 GOAL PAGE ] ON ANY HABIT TO ENTER DETAILS</Text>
@@ -639,6 +663,9 @@ export const PaperWinterTrackerScreen: React.FC = () => {
               </View>
             </View>
           </View>
+        </Modal>
+      )}
+
       {/* 3. GMAIL LOGIN & CLOUD BACKUP MODAL */}
       <GmailLoginModal
         visible={showGmailModal}
@@ -1226,6 +1253,64 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 11,
     fontWeight: '800',
+    letterSpacing: 0.8
+  },
+  headerAuthBanner: {
+    backgroundColor: '#11141D',
+    borderWidth: 1,
+    borderColor: '#EA4335',
+    borderRadius: 12,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+    gap: 12,
+    boxShadow: '0 4px 14px rgba(234, 67, 53, 0.2)'
+  },
+  headerAuthBannerLoggedIn: {
+    backgroundColor: '#0E1610',
+    borderColor: '#00FF66',
+    boxShadow: '0 4px 14px rgba(0, 255, 102, 0.15)'
+  },
+  authBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1
+  },
+  authBannerGLogo: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#EA4335'
+  },
+  authBannerTitle: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1
+  },
+  authBannerSub: {
+    color: '#888',
+    fontSize: 10,
+    marginTop: 2
+  },
+  authBannerBtn: {
+    backgroundColor: '#EA4335',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8
+  },
+  authBannerBtnLoggedIn: {
+    backgroundColor: '#16281E',
+    borderWidth: 1,
+    borderColor: '#00FF66'
+  },
+  authBannerBtnText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '900',
     letterSpacing: 0.8
   }
 });
