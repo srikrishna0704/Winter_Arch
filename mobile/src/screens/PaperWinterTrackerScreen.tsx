@@ -34,7 +34,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const activeMonthKey = `${selectedYear}-${String(selectedMonthIdx + 1).padStart(2, '0')}`;
 
   // Keep a Ref of the currently loaded month key to avoid saving to wrong month during state transitions
-  const loadedMonthKeyRef = useRef<string>(activeMonthKey);
+  const loadedMonthKeyRef = useRef<string>('');
 
   // Profile Details
   const [name, setName] = useState('Chaitanya');
@@ -95,7 +95,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
             };
             setCurrentUser(activeUser);
             setName('Chaitanya');
-            handleSwitchMonth(selectedYear, selectedMonthIdx);
+            await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
             return;
           }
         }
@@ -105,9 +105,11 @@ export const PaperWinterTrackerScreen: React.FC = () => {
             setCurrentUser(res.user);
             if (res.user.name) setName(res.user.name);
           }
+          await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
         }
       } catch (err) {
         console.warn('Auth check error:', err);
+        await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
       }
     };
     checkAuth();
@@ -150,25 +152,26 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   };
 
   // Switch Month Handler: SAVE CURRENT MONTH FIRST, THEN LOAD TARGET MONTH!
-  const handleSwitchMonth = async (newYear: number, newMonthIdx: number) => {
+  const handleSwitchMonth = async (newYear: number, newMonthIdx: number, forceFetch = false) => {
     const newMonthKey = `${newYear}-${String(newMonthIdx + 1).padStart(2, '0')}`;
-    if (newMonthKey === loadedMonthKeyRef.current) return;
+    if (!forceFetch && loadedMonthKeyRef.current === newMonthKey) return;
 
     setIsChangingMonth(true);
-    setSaveStatusMsg('SAVING PREVIOUS MONTH DATA...');
 
-    // 1. FIRST SAVE CURRENT MONTH TO MONGODB ATLAS
-    await saveMonthDataToBackend(loadedMonthKeyRef.current, {
-      name,
-      startDate,
-      habits,
-      habitGrid,
-      sleepGrid: sleepEntries,
-      monthlyGoal,
-      achievedThisMonth,
-      shouldImprove,
-      habitDetailsMap
-    });
+    if (loadedMonthKeyRef.current && loadedMonthKeyRef.current !== newMonthKey) {
+      setSaveStatusMsg('SAVING PREVIOUS MONTH DATA...');
+      await saveMonthDataToBackend(loadedMonthKeyRef.current, {
+        name,
+        startDate,
+        habits,
+        habitGrid,
+        sleepGrid: sleepEntries,
+        monthlyGoal,
+        achievedThisMonth,
+        shouldImprove,
+        habitDetailsMap
+      });
+    }
 
     // 2. UPDATE SELECTED MONTH & REF
     setSelectedYear(newYear);

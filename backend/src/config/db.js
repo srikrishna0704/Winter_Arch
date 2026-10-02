@@ -12,11 +12,7 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 export const connectMongoDB = async () => {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    console.log('[DB] No MONGODB_URI set, using local JSON database engine.');
-    return false;
-  }
+  const uri = process.env.MONGODB_URI || 'mongodb+srv://srikrishna0704_db_user:VQoLYOna1OWLI01h@cluster0.ntds3zu.mongodb.net/winter_arc?retryWrites=true&w=majority&appName=Cluster0';
 
   if (mongoose.connection && mongoose.connection.readyState === 1) {
     return true;
