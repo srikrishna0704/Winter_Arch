@@ -573,6 +573,46 @@ export const PaperWinterTrackerScreen: React.FC = () => {
                   })}
                 </View>
               ))}
+
+              {/* NEW BOTTOM SUMMARY ROW: DAILY WORK COMPLETED % */}
+              <View style={styles.dailyPercentRow}>
+                <View style={styles.habitNameColHeader}>
+                  <Text style={styles.dailyPercentLabel}>📊 DAILY COMPLETED %</Text>
+                </View>
+                {daysArray.map((d) => {
+                  let dayCheckedCount = 0;
+                  for (let hIdx = 0; hIdx < 10; hIdx++) {
+                    if (habitGrid[`${hIdx}_${d}`]) {
+                      dayCheckedCount++;
+                    }
+                  }
+                  const pct = Math.round((dayCheckedCount / 10) * 100);
+
+                  let pctColor = '#475569';
+                  let bgAlpha = 'transparent';
+                  if (pct >= 90) {
+                    pctColor = '#00FF66';
+                    bgAlpha = 'rgba(0, 255, 102, 0.22)';
+                  } else if (pct >= 70) {
+                    pctColor = '#8BCEFF';
+                    bgAlpha = 'rgba(139, 206, 255, 0.2)';
+                  } else if (pct >= 50) {
+                    pctColor = '#F59E0B';
+                    bgAlpha = 'rgba(245, 158, 11, 0.2)';
+                  } else if (pct > 0) {
+                    pctColor = '#EAB308';
+                    bgAlpha = 'rgba(234, 179, 8, 0.15)';
+                  }
+
+                  return (
+                    <View key={d} style={[styles.dailyPercentCell, { backgroundColor: bgAlpha }]}>
+                      <Text style={[styles.dailyPercentText, { color: pctColor }]}>
+                        {pct > 0 ? `${pct}%` : '-'}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           </ScrollView>
         </View>
@@ -1397,5 +1437,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 0.8
+  },
+  dailyPercentRow: {
+    flexDirection: 'row',
+    backgroundColor: '#0A0C10',
+    borderTopWidth: 2,
+    borderTopColor: '#22252E',
+    marginTop: 4
+  },
+  dailyPercentLabel: {
+    color: '#00FF66',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8
+  },
+  dailyPercentCell: {
+    width: 32,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: '#1A1D24'
+  },
+  dailyPercentText: {
+    fontSize: 9,
+    fontWeight: '900',
+    textAlign: 'center'
   }
 });
