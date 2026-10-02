@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect } from '../middleware/auth.js';
+import { protect, optionalAuth } from '../middleware/auth.js';
 import * as authCtrl from '../controllers/authController.js';
 import * as arcCtrl from '../controllers/arcController.js';
 import * as habitCtrl from '../controllers/habitController.js';
@@ -15,12 +15,14 @@ const router = express.Router();
 // Auth routes
 router.post('/auth/register', authCtrl.register);
 router.post('/auth/login', authCtrl.login);
+router.post('/auth/google', authCtrl.googleLogin);
 router.get('/auth/me', protect, authCtrl.getMe);
 
 // Monthly Tracker routes
-router.get('/tracker/months', trackerCtrl.getAllMonths);
-router.get('/tracker/:monthKey', trackerCtrl.getMonthTracker);
-router.post('/tracker/:monthKey', trackerCtrl.saveMonthTracker);
+router.get('/tracker/months', optionalAuth, trackerCtrl.getAllMonths);
+router.get('/tracker/:monthKey', optionalAuth, trackerCtrl.getMonthTracker);
+router.post('/tracker/:monthKey', optionalAuth, trackerCtrl.saveMonthTracker);
+
 
 // Arc routes
 router.get('/arc', protect, arcCtrl.getArc);

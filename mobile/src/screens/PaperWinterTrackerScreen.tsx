@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import { COLORS, SPACING } from '../constants/theme';
-import { apiRequest } from '../services/api';
+import { apiRequest, getAuthToken } from '../services/api';
 import { GoalDetailsScreen, GoalData } from './GoalDetailsScreen';
+import { GmailLoginModal } from '../components/GmailLoginModal';
 
 interface SleepEntry {
   bedtime: string;
@@ -70,6 +71,27 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   // Modal Controls
   const [selectedSleepDay, setSelectedSleepDay] = useState<number | null>(null);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
+  const [showGmailModal, setShowGmailModal] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Check Auth on Mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await getAuthToken();
+        if (token) {
+          const res = await apiRequest('/auth/me');
+          if (res.success && res.user) {
+            setCurrentUser(res.user);
+            if (res.user.name) setName(res.user.name);
+          }
+        }
+      } catch (err) {
+        console.warn('Auth check error:', err);
+      }
+    };
+    checkAuth();
+  }, []);
 
   // Sleep Modal Input State
   const [modalBedtime, setModalBedtime] = useState('23:15');
@@ -335,6 +357,16 @@ export const PaperWinterTrackerScreen: React.FC = () => {
           </View>
 
           <View style={styles.rightActionRow}>
+            <TouchableOpacity 
+              style={[styles.gmailAuthBtn, currentUser && styles.gmailAuthBtnLoggedIn]} 
+              onPress={() => setShowGmailModal(true)}
+            >
+              <Text style={styles.googleGIcon}>G</Text>
+              <Text style={styles.gmailAuthText}>
+                {currentUser ? `${currentUser.email.split('@')[0].toUpperCase()} (SYNCED 🟢)` : 'LOGIN WITH GMAIL'}
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.manualSaveBtn} onPress={saveCurrentMonthExplicitly}>
               <Text style={styles.manualSaveText}>💾 SAVE SHEET TO MONGODB</Text>
             </TouchableOpacity>
@@ -607,9 +639,24 @@ export const PaperWinterTrackerScreen: React.FC = () => {
               </View>
             </View>
           </View>
-        </Modal>
-      )}
-
+      {/* 3. GMAIL LOGIN & CLOUD BACKUP MODAL */}
+      <GmailLoginModal
+        visible={showGmailModal}
+        onClose={() => setShowGmailModal(false)}
+        currentUser={currentUser}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          if (user.name) setName(user.name);
+          setSaveStatusMsg(`LOGGED IN AS ${user.email.toUpperCase()} 🟢`);
+          handleSwitchMonth(selectedYear, selectedMonthIdx);
+        }}
+        onLogoutSuccess={() => {
+          setCurrentUser(null);
+          setName('Alex Vance');
+          setSaveStatusMsg('LOGGED OUT — GUEST MODE ⚪');
+          handleSwitchMonth(selectedYear, selectedMonthIdx);
+        }}
+      />
     </View>
   );
 };
@@ -1155,5 +1202,30 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 11,
     fontWeight: '700'
+  },
+  gmailAuthBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EA4335',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 8
+  },
+  gmailAuthBtnLoggedIn: {
+    backgroundColor: '#161922',
+    borderWidth: 1,
+    borderColor: '#4285F4'
+  },
+  googleGIcon: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900'
+  },
+  gmailAuthText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8
   }
 });

@@ -86,3 +86,70 @@ export const getMe = (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+export const googleLogin = (req, res) => {
+  try {
+    const { email, name, picture, googleId, credential } = req.body;
+    let userEmail = email;
+    let userName = name;
+    let userPicture = picture;
+    let userGId = googleId;
+
+    if (credential) {
+      try {
+        const base64Url = credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split('')
+            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const payload = JSON.parse(jsonPayload);
+        userEmail = payload.email;
+        userName = payload.name;
+        userPicture = payload.picture;
+        userGId = payload.sub;
+      } catch (e) {
+        console.warn('Failed to parse Google JWT credential:', e);
+      }
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ success: false, message: 'Gmail email address is required' });
+    }
+
+    const cleanEmail = userEmail.toLowerCase().trim();
+    let user = UserDb.findOne({ email: cleanEmail });
+
+    if (!user) {
+      user = UserDb.insertOne({
+        email: cleanEmail,
+        name: userName || cleanEmail.split('@')[0],
+        googleId: userGId || `gid_${Date.now()}`,
+        avatar: userPicture || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        authProvider: 'google',
+        createdAt: new Date().toISOString()
+      });
+    } else {
+      user = UserDb.updateOne({ _id: user._id }, {
+        googleId: userGId || user.googleId || `gid_${Date.now()}`,
+        avatar: userPicture || user.avatar,
+        authProvider: 'google',
+        name: userName || user.name
+      });
+    }
+
+    const token = generateToken(user._id);
+    const { passwordHash: _, ...userWithoutPassword } = user;
+
+    res.json({
+      success: true,
+      token,
+      user: userWithoutPassword
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

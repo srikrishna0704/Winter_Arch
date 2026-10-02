@@ -33,3 +33,21 @@ export const protect = (req, res, next) => {
   req.userId = decoded.id;
   next();
 };
+
+export const optionalAuth = (req, res, next) => {
+  let token = null;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (token) {
+    const decoded = verifyToken(token);
+    if (decoded && decoded.id) {
+      req.userId = decoded.id;
+    }
+  }
+
+  next();
+};
+
