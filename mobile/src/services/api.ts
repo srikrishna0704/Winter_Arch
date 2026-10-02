@@ -51,7 +51,7 @@ export const apiRequest = async (endpoint: string, method = 'GET', body: any = n
   }
 
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, options, 4000);
+    const res = await fetchWithTimeout(`${API_BASE_URL}${endpoint}`, options, 12000);
     const data = await res.json();
     return data;
   } catch (error) {

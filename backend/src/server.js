@@ -20,17 +20,18 @@ app.use((req, res, next) => {
 });
 
 // Initialize database connection & seed demo data
-(async () => {
-  await connectMongoDB();
+connectMongoDB().then(() => {
   try {
     seedDatabase();
   } catch (err) {
     console.error('Seed error:', err);
   }
-})();
+}).catch(err => {
+  console.warn('DB connect warning:', err);
+});
 
 // Healthcheck endpoint
-app.get('/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({
     status: 'ok',
     app: 'WINTER ARC API',
@@ -39,8 +40,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Mount API routes
+// Mount API routes on both /api and root / for Vercel rewrites
 app.use('/api', apiRoutes);
+app.use('/', apiRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -48,10 +50,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Internal Server Error', error: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`==================================================`);
-  console.log(`❄️  WINTER ARC BACKEND SERVER ACTIVE ON PORT ${PORT}`);
-  console.log(`    API URL: http://localhost:${PORT}/api`);
-  console.log(`    MONGO: cluster0.wow1g1b.mongodb.net`);
-  console.log(`==================================================`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`==================================================`);
+    console.log(`❄️  WINTER ARC BACKEND SERVER ACTIVE ON PORT ${PORT}`);
+    console.log(`    API URL: http://localhost:${PORT}/api`);
+    console.log(`==================================================`);
+  });
+}
+
+export default app;
