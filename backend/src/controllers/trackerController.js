@@ -5,7 +5,7 @@ const TrackerDb = getDb('monthly_trackers');
 export const getMonthTracker = async (req, res) => {
   try {
     const { monthKey } = req.params; // e.g. "2026-10"
-    const userId = req.userId || 'alex_vance';
+    const userId = req.userId || 'user_gmail_srikrishna_gmail_com';
 
     let tracker = await TrackerDb.findOne({ userId, monthKey });
 
@@ -27,7 +27,7 @@ export const getMonthTracker = async (req, res) => {
       tracker = await TrackerDb.insertOne({
         userId,
         monthKey,
-        name: 'Alex Vance',
+        name: 'Chaitanya',
         startDate: `${monthKey}-01`,
         habits: defaultHabits,
         habitGrid: {},
@@ -54,19 +54,15 @@ export const getMonthTracker = async (req, res) => {
 export const saveMonthTracker = async (req, res) => {
   try {
     const { monthKey } = req.params;
-    const userId = req.userId || 'alex_vance';
+    const userId = req.userId || 'user_gmail_srikrishna_gmail_com';
 
-    let tracker = await TrackerDb.findOne({ userId, monthKey });
+    const payload = {
+      userId,
+      monthKey,
+      ...req.body
+    };
 
-    if (!tracker) {
-      tracker = await TrackerDb.insertOne({
-        userId,
-        monthKey,
-        ...req.body
-      });
-    } else {
-      tracker = await TrackerDb.updateById(tracker._id || tracker.id, req.body);
-    }
+    const tracker = await TrackerDb.updateOne({ userId, monthKey }, payload);
 
     res.json({ success: true, tracker });
   } catch (err) {
@@ -76,7 +72,7 @@ export const saveMonthTracker = async (req, res) => {
 
 export const getAllMonths = async (req, res) => {
   try {
-    const userId = req.userId || 'alex_vance';
+    const userId = req.userId || 'user_gmail_srikrishna_gmail_com';
     const trackers = await TrackerDb.find({ userId });
     const months = trackers.map(t => t.monthKey);
     res.json({ success: true, months });

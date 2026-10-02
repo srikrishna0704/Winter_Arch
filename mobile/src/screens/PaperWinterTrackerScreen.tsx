@@ -227,10 +227,24 @@ export const PaperWinterTrackerScreen: React.FC = () => {
 
   const toggleHabitCell = (hIdx: number, day: number) => {
     const key = `${hIdx}_${day}`;
-    setHabitGrid(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
+    setHabitGrid(prev => {
+      const updatedGrid = {
+        ...prev,
+        [key]: !prev[key]
+      };
+      saveMonthDataToBackend(loadedMonthKeyRef.current, {
+        name,
+        startDate,
+        habits,
+        habitGrid: updatedGrid,
+        sleepGrid: sleepEntries,
+        monthlyGoal,
+        achievedThisMonth,
+        shouldImprove,
+        habitDetailsMap
+      });
+      return updatedGrid;
+    });
   };
 
   const openSleepModalForDay = (day: number) => {
@@ -261,8 +275,21 @@ export const PaperWinterTrackerScreen: React.FC = () => {
       quality: modalQuality
     };
 
-    setSleepEntries(prev => ({ ...prev, [selectedSleepDay]: entry }));
+    const updatedSleep = { ...sleepEntries, [selectedSleepDay]: entry };
+    setSleepEntries(updatedSleep);
     setSelectedSleepDay(null);
+
+    saveMonthDataToBackend(loadedMonthKeyRef.current, {
+      name,
+      startDate,
+      habits,
+      habitGrid,
+      sleepGrid: updatedSleep,
+      monthlyGoal,
+      achievedThisMonth,
+      shouldImprove,
+      habitDetailsMap
+    });
   };
 
   const openGoalPageForHabit = (hIdx: number) => {

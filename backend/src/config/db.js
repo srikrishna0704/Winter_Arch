@@ -106,7 +106,11 @@ class JsonDatabase {
       this._saveData();
       return updatedDoc;
     }
-    return null;
+    const id = query._id || query.id || 'id_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    const newDoc = { _id: id, createdAt: new Date().toISOString(), ...query, ...updates };
+    this.data.push(newDoc);
+    this._saveData();
+    return newDoc;
   }
 
   updateById(id, updates) {
