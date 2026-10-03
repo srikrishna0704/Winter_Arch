@@ -1,27 +1,23 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "backend": {
-      "root": "backend",
-      "framework": "express"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.js",
+      "use": "@vercel/node"
     },
-    "mobile": {
-      "root": "mobile",
-      "framework": "vite"
+    {
+      "src": "mobile/package.json",
+      "use": "@vercel/vite"
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": {
-        "service": "backend"
-      }
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": {
-        "service": "mobile"
-      }
+      "src": "/(.*)",
+      "dest": "/mobile/$1"
     }
   ]
 }

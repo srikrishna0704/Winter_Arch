@@ -5,10 +5,16 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.join(__dirname, '../../data');
+const DATA_DIR = (process.env.VERCEL || process.env.NODE_ENV === 'production')
+  ? path.join('/tmp', 'data')
+  : path.join(__dirname, '../../data');
 
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.warn('DATA_DIR creation notice:', e.message);
 }
 
 export const connectMongoDB = async () => {
