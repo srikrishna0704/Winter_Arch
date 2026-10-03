@@ -9,10 +9,9 @@ export const seedDatabase = async () => {
   const DailyLogDb = getDb('daily_logs');
 
   try {
-    // Check if seed data already exists
-    const existingAlex = await UserDb.findOne({ email: 'alex@winterarc.com' });
-    if (existingAlex) {
-      return existingAlex;
+    if (process.env.SEED_DEMO !== 'true') {
+      console.log('Skipping auto-seeding to keep database fresh for new sign ups.');
+      return null;
     }
 
     console.log('Seeding Winter Arc demo data...');
