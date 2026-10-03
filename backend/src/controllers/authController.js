@@ -77,6 +77,18 @@ export const getMe = async (req, res) => {
   try {
     const user = await UserDb.findById(req.userId);
     if (!user) {
+      if (req.userId && req.userId.startsWith('user_gmail_')) {
+        const email = req.userId.replace('user_gmail_', '').replace(/_/g, '.');
+        return res.json({
+          success: true,
+          user: {
+            _id: req.userId,
+            email: email,
+            name: email.split('@')[0],
+            avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email)}`
+          }
+        });
+      }
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 

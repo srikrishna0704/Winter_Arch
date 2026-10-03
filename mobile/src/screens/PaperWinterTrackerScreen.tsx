@@ -72,41 +72,30 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const [selectedSleepDay, setSelectedSleepDay] = useState<number | null>(null);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
   const [showGmailModal, setShowGmailModal] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'LOGIN' | 'SIGNUP' | 'GMAIL'>('SIGNUP');
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Check Auth on Mount: Auto-login as Chaitanya (srikrishna@gmail.com) if no active user
+  // Check Auth on Mount: Validate token or prompt Sign Up / Login Modal
   useEffect(() => {
     const checkAuth = async () => {
       try {
         let token = await getAuthToken();
         if (!token) {
-          const res = await apiRequest('/auth/google', 'POST', {
-            email: 'srikrishna@gmail.com',
-            name: 'Chaitanya',
-            googleId: 'google_srikrishna_default',
-            picture: 'https://api.dicebear.com/7.x/bottts/svg?seed=Chaitanya'
-          });
-          if (res && (res.user || res.token)) {
-            if (res.token) await setAuthToken(res.token);
-            const activeUser = res.user || {
-              _id: 'user_gmail_srikrishna_gmail_com',
-              email: 'srikrishna@gmail.com',
-              name: 'Chaitanya'
-            };
-            setCurrentUser(activeUser);
-            setName('Chaitanya');
-            await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
-            return;
-          }
-        }
-        if (token) {
-          const res = await apiRequest('/auth/me');
-          if (res && res.success && res.user) {
-            setCurrentUser(res.user);
-            if (res.user.name) setName(res.user.name);
-          }
+          // If no user is logged in, show AuthModal automatically
+          setShowGmailModal(true);
           await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
+          return;
         }
+
+        const res = await apiRequest('/auth/me');
+        if (res && res.success && res.user) {
+          setCurrentUser(res.user);
+          if (res.user.name) setName(res.user.name);
+        } else {
+          // Token invalid or expired, prompt login
+          setShowGmailModal(true);
+        }
+        await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
       } catch (err) {
         console.warn('Auth check error:', err);
         await handleSwitchMonth(selectedYear, selectedMonthIdx, true);
@@ -124,7 +113,8 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   const saveMonthDataToBackend = async (mKey: string, payload: any) => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(`winter_arc_sheet_${mKey}`, JSON.stringify(payload));
+        const uId = currentUser?._id || 'guest';
+        window.localStorage.setItem(`winter_arc_sheet_${uId}_${mKey}`, JSON.stringify(payload));
       }
       const res = await apiRequest(`/tracker/${mKey}`, 'POST', payload);
       if (res.success) {
@@ -181,10 +171,12 @@ export const PaperWinterTrackerScreen: React.FC = () => {
     setSelectedMonthIdx(newMonthIdx);
     loadedMonthKeyRef.current = newMonthKey;
 
+    const uId = currentUser?._id || 'guest';
+
     // 3. INSTANT LOCAL STORAGE CACHE LOAD (0ms latency)
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        const cached = window.localStorage.getItem(`winter_arc_sheet_${newMonthKey}`);
+        const cached = window.localStorage.getItem(`winter_arc_sheet_${uId}_${newMonthKey}`);
         if (cached) {
           const t = JSON.parse(cached);
           if (t.name) setName(t.name);
@@ -224,7 +216,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
       const res = await apiRequest(`/tracker/${newMonthKey}`);
       if (res.success && res.tracker) {
         const t = res.tracker;
-        setName(t.name || 'Chaitanya');
+        setName(t.name || currentUser?.name || 'Achiever');
         setStartDate(t.startDate || `${newMonthKey}-01`);
         if (t.habits && t.habits.length === 10) setHabits(t.habits);
         setHabitGrid(t.habitGrid || {});
@@ -235,7 +227,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
         if (t.habitDetailsMap) setHabitDetailsMap(t.habitDetailsMap);
 
         if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.setItem(`winter_arc_sheet_${newMonthKey}`, JSON.stringify(t));
+          window.localStorage.setItem(`winter_arc_sheet_${uId}_${newMonthKey}`, JSON.stringify(t));
         }
       }
       setSaveStatusMsg(`LOADED & SYNCED WITH MONGODB 🟢`);
@@ -487,22 +479,49 @@ export const PaperWinterTrackerScreen: React.FC = () => {
           </View>
 
           <View style={styles.rightActionRow}>
-            <TouchableOpacity 
-              style={[styles.gmailAuthBtn, currentUser && styles.gmailAuthBtnLoggedIn]} 
-              onPress={() => setShowGmailModal(true)}
-            >
-              <Text style={styles.googleGIcon}>G</Text>
-              <Text style={styles.gmailAuthText}>
-                {currentUser ? `${currentUser.email.split('@')[0].toUpperCase()} (SYNCED 🟢)` : 'LOGIN WITH GMAIL'}
-              </Text>
-            </TouchableOpacity>
+            {currentUser ? (
+              <TouchableOpacity 
+                style={[styles.gmailAuthBtn, styles.gmailAuthBtnLoggedIn]} 
+                onPress={() => {
+                  setAuthModalMode('SIGNUP');
+                  setShowGmailModal(true);
+                }}
+              >
+                <Text style={styles.googleGIcon}>👤</Text>
+                <Text style={styles.gmailAuthText}>
+                  {currentUser.name ? currentUser.name.toUpperCase() : currentUser.email.split('@')[0].toUpperCase()} (SYNCED 🟢)
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.signUpTopBtn} 
+                  onPress={() => {
+                    setAuthModalMode('SIGNUP');
+                    setShowGmailModal(true);
+                  }}
+                >
+                  <Text style={styles.signUpTopText}>✨ SIGN UP</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.loginTopBtn} 
+                  onPress={() => {
+                    setAuthModalMode('LOGIN');
+                    setShowGmailModal(true);
+                  }}
+                >
+                  <Text style={styles.loginTopText}>🔑 LOG IN</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
             <TouchableOpacity style={styles.manualSaveBtn} onPress={saveCurrentMonthExplicitly}>
-              <Text style={styles.manualSaveText}>💾 SAVE SHEET TO MONGODB</Text>
+              <Text style={styles.manualSaveText}>💾 SAVE SHEET</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.freshResetBtn} onPress={() => setShowResetConfirmModal(true)}>
-              <Text style={styles.freshResetText}>⚡ RESET MONTH</Text>
+              <Text style={styles.freshResetText}>⚡ RESET</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -542,29 +561,60 @@ export const PaperWinterTrackerScreen: React.FC = () => {
           <Text style={styles.statTag}>AVG SLEEP: <Text style={{ color: '#8BCEFF' }}>{avgSleep} HRS</Text></Text>
         </View>
 
-        {/* PROMINENT GMAIL CLOUD AUTH BANNER */}
-        <TouchableOpacity 
-          style={[styles.headerAuthBanner, currentUser && styles.headerAuthBannerLoggedIn]} 
-          onPress={() => setShowGmailModal(true)}
-          activeOpacity={0.8}
-        >
+        {/* PROMINENT USER AUTH BANNER WITH DEDICATED SIGN UP & LOG IN BUTTONS */}
+        <View style={[styles.headerAuthBanner, currentUser && styles.headerAuthBannerLoggedIn]}>
           <View style={styles.authBannerLeft}>
-            <Text style={styles.authBannerGLogo}>G</Text>
+            <Text style={styles.authBannerGLogo}>{currentUser ? '👤' : '🔒'}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.authBannerTitle}>
-                {currentUser ? `BACKED UP TO GMAIL: ${currentUser.email.toUpperCase()}` : 'GMAIL CLOUD BACKUP & SYNCRONIZATION'}
+                {currentUser
+                  ? `LOGGED IN: ${currentUser.name.toUpperCase()} (${currentUser.email})`
+                  : 'INDIVIDUAL SHEET ACCESS — CREATE ACCOUNT OR LOG IN'}
               </Text>
               <Text style={styles.authBannerSub}>
-                {currentUser ? 'Click to manage your account or switch profiles' : 'Click here to sign in with your Gmail account & save habits permanently in MongoDB'}
+                {currentUser
+                  ? 'Your monthly habit sheet & progress are remembered individually in MongoDB Atlas.'
+                  : 'Sign up to create your individual sheet so your progress is saved uniquely for your account.'}
               </Text>
             </View>
           </View>
-          <View style={[styles.authBannerBtn, currentUser && styles.authBannerBtnLoggedIn]}>
-            <Text style={styles.authBannerBtnText}>
-              {currentUser ? 'ACCOUNT SETTINGS ⚙️' : 'LOGIN WITH GMAIL 🔑'}
-            </Text>
+
+          <View style={styles.authBannerBtnRow}>
+            {currentUser ? (
+              <TouchableOpacity
+                style={styles.bannerAccountBtn}
+                onPress={() => {
+                  setAuthModalMode('SIGNUP');
+                  setShowGmailModal(true);
+                }}
+              >
+                <Text style={styles.bannerAccountBtnText}>ACCOUNT / SWITCH USER ⚙️</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.bannerSignUpBtn}
+                  onPress={() => {
+                    setAuthModalMode('SIGNUP');
+                    setShowGmailModal(true);
+                  }}
+                >
+                  <Text style={styles.bannerSignUpBtnText}>✨ SIGN UP (CREATE ACCOUNT)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.bannerLogInBtn}
+                  onPress={() => {
+                    setAuthModalMode('LOGIN');
+                    setShowGmailModal(true);
+                  }}
+                >
+                  <Text style={styles.bannerLogInBtnText}>🔑 LOG IN (SIGN IN)</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* GRID 1: 10 HABITS / 31 DAYS MATRIX */}
         <View style={styles.tableFrame}>
@@ -683,7 +733,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
 
         {/* GRID 2: EXACT SLEEP MATRIX & LOGGING */}
         <View style={styles.tableFrame}>
-          <View style={styles.tableTitleRow}>
+          <View style={{ marginBottom: 4 }}>
             <Text style={styles.tableSectionTitle}>EXACT SLEEP TRACKING MATRIX (TAP CELL TO EDIT EXACT BEDTIME & WAKE TIME)</Text>
           </View>
 
@@ -855,22 +905,29 @@ export const PaperWinterTrackerScreen: React.FC = () => {
         </Modal>
       )}
 
-      {/* 3. GMAIL LOGIN & CLOUD BACKUP MODAL */}
+      {/* 3. AUTH & LOGIN / SIGN UP MODAL */}
       <GmailLoginModal
         visible={showGmailModal}
+        initialMode={authModalMode}
         onClose={() => setShowGmailModal(false)}
         currentUser={currentUser}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           if (user.name) setName(user.name);
-          setSaveStatusMsg(`LOGGED IN AS ${user.email.toUpperCase()} 🟢`);
-          handleSwitchMonth(selectedYear, selectedMonthIdx);
+          setSaveStatusMsg(`LOGGED IN AS ${user.name ? user.name.toUpperCase() : user.email.toUpperCase()} 🟢`);
+          handleSwitchMonth(selectedYear, selectedMonthIdx, true);
         }}
         onLogoutSuccess={() => {
           setCurrentUser(null);
-          setName('Alex Vance');
-          setSaveStatusMsg('LOGGED OUT — GUEST MODE ⚪');
-          handleSwitchMonth(selectedYear, selectedMonthIdx);
+          setName('Achiever');
+          setHabitGrid({});
+          setSleepEntries({});
+          setMonthlyGoal('');
+          setAchievedThisMonth('');
+          setShouldImprove('');
+          setHabitDetailsMap({});
+          setSaveStatusMsg('LOGGED OUT — PLEASE SIGN IN OR CREATE ACCOUNT ⚪');
+          handleSwitchMonth(selectedYear, selectedMonthIdx, true);
         }}
       />
     </View>
@@ -1559,5 +1616,76 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     textAlign: 'center'
+  },
+  signUpTopBtn: {
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6
+  },
+  signUpTopText: {
+    color: '#090A0C',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8
+  },
+  loginTopBtn: {
+    backgroundColor: '#181B21',
+    borderColor: '#8BCEFF',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6
+  },
+  loginTopText: {
+    color: '#8BCEFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8
+  },
+  authBannerBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  bannerSignUpBtn: {
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8
+  },
+  bannerSignUpBtnText: {
+    color: '#090A0C',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8
+  },
+  bannerLogInBtn: {
+    backgroundColor: '#161B26',
+    borderWidth: 1,
+    borderColor: '#8BCEFF',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8
+  },
+  bannerLogInBtnText: {
+    color: '#8BCEFF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8
+  },
+  bannerAccountBtn: {
+    backgroundColor: '#16281E',
+    borderWidth: 1,
+    borderColor: '#00FF66',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8
+  },
+  bannerAccountBtnText: {
+    color: '#00FF66',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8
   }
 });

@@ -153,9 +153,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         habitName: h.name,
         powerId: h.powerId,
         importance: h.importance,
-        minimumCompleted: status !== 'NOT_STARTED',
-        targetCompleted: status === 'TARGET_ACHIEVED' || status === 'STRETCH_ACHIEVED',
-        stretchCompleted: status === 'STRETCH_ACHIEVED',
+        minimumCompleted: (status as string) !== 'NOT_STARTED',
+        targetCompleted: (status as string) === 'TARGET_ACHIEVED' || (status as string) === 'STRETCH_ACHIEVED',
+        stretchCompleted: (status as string) === 'STRETCH_ACHIEVED',
         actualValue: status === 'TARGET_ACHIEVED' ? 2 : (status === 'IN_PROGRESS' ? 0.75 : 0),
         status
       };

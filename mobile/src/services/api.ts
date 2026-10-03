@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
 const TOKEN_KEY = 'winter_arc_jwt_token';
 const OFFLINE_QUEUE_KEY = 'winter_arc_offline_queue';

@@ -10,6 +10,19 @@ export const getMonthTracker = async (req, res) => {
     let tracker = await TrackerDb.findOne({ userId, monthKey });
 
     if (!tracker) {
+      let userName = 'Achiever';
+      if (req.userId) {
+        try {
+          const UserDb = getDb('users');
+          const user = await UserDb.findById(req.userId);
+          if (user && user.name) {
+            userName = user.name;
+          }
+        } catch (e) {
+          console.warn('User lookup warning:', e);
+        }
+      }
+
       // Return clean fresh monthly tracker template
       const defaultHabits = [
         'Deep Coding Session',
@@ -27,7 +40,7 @@ export const getMonthTracker = async (req, res) => {
       tracker = await TrackerDb.insertOne({
         userId,
         monthKey,
-        name: 'Chaitanya',
+        name: userName,
         startDate: `${monthKey}-01`,
         habits: defaultHabits,
         habitGrid: {},
