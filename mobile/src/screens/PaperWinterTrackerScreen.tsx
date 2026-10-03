@@ -35,6 +35,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
 
   // Keep a Ref of the currently loaded month key to avoid saving to wrong month during state transitions
   const loadedMonthKeyRef = useRef<string>('');
+  const isInitialLoadedRef = useRef<boolean>(false);
 
   // Profile Details
   const [name, setName] = useState('Chaitanya');
@@ -112,12 +113,12 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   // Save specific Month Data to MongoDB Atlas & Local Storage
   const saveMonthDataToBackend = async (mKey: string, payload: any) => {
     try {
+      const uId = currentUser?._id || 'guest';
       if (typeof window !== 'undefined' && window.localStorage) {
-        const uId = currentUser?._id || 'guest';
         window.localStorage.setItem(`winter_arc_sheet_${uId}_${mKey}`, JSON.stringify(payload));
       }
       const res = await apiRequest(`/tracker/${mKey}`, 'POST', payload);
-      if (res.success) {
+      if (res && res.success) {
         const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         setSaveStatusMsg(`SAVED TO MONGODB AT ${timeStr} 🟢`);
       }
@@ -147,8 +148,9 @@ export const PaperWinterTrackerScreen: React.FC = () => {
   // Switch Month Handler: SAVE CURRENT MONTH FIRST, THEN LOAD TARGET MONTH!
   const handleSwitchMonth = async (newYear: number, newMonthIdx: number, forceFetch = false) => {
     const newMonthKey = `${newYear}-${String(newMonthIdx + 1).padStart(2, '0')}`;
-    if (!forceFetch && loadedMonthKeyRef.current === newMonthKey) return;
+    if (!forceFetch && loadedMonthKeyRef.current === newMonthKey && isInitialLoadedRef.current) return;
 
+    isInitialLoadedRef.current = false;
     setIsChangingMonth(true);
 
     if (loadedMonthKeyRef.current && loadedMonthKeyRef.current !== newMonthKey) {
@@ -188,25 +190,10 @@ export const PaperWinterTrackerScreen: React.FC = () => {
           setAchievedThisMonth(t.achievedThisMonth || '');
           setShouldImprove(t.shouldImprove || '');
           if (t.habitDetailsMap) setHabitDetailsMap(t.habitDetailsMap);
-        } else {
-          setHabitGrid({});
-          setSleepEntries({});
-          setMonthlyGoal('');
-          setAchievedThisMonth('');
-          setShouldImprove('');
-          setHabitDetailsMap({});
         }
       } catch (e) {
-        setHabitGrid({});
-        setSleepEntries({});
+        console.warn('Cache parse error:', e);
       }
-    } else {
-      setHabitGrid({});
-      setSleepEntries({});
-      setMonthlyGoal('');
-      setAchievedThisMonth('');
-      setShouldImprove('');
-      setHabitDetailsMap({});
     }
 
     setSaveStatusMsg(`LOADING ${MONTH_NAMES[newMonthIdx].toUpperCase()} ${newYear}...`);
@@ -214,10 +201,10 @@ export const PaperWinterTrackerScreen: React.FC = () => {
     // 4. FETCH TARGET MONTH FROM MONGODB ATLAS
     try {
       const res = await apiRequest(`/tracker/${newMonthKey}`);
-      if (res.success && res.tracker) {
+      if (res && res.success && res.tracker) {
         const t = res.tracker;
-        setName(t.name || currentUser?.name || 'Achiever');
-        setStartDate(t.startDate || `${newMonthKey}-01`);
+        if (t.name) setName(t.name);
+        if (t.startDate) setStartDate(t.startDate);
         if (t.habits && t.habits.length === 10) setHabits(t.habits);
         setHabitGrid(t.habitGrid || {});
         setSleepEntries(t.sleepGrid || {});
@@ -235,6 +222,7 @@ export const PaperWinterTrackerScreen: React.FC = () => {
       console.warn('Load month error:', err);
     } finally {
       setIsChangingMonth(false);
+      isInitialLoadedRef.current = true;
     }
   };
 
@@ -245,12 +233,12 @@ export const PaperWinterTrackerScreen: React.FC = () => {
 
   // Debounced Auto-save to MongoDB Atlas for currently active month
   useEffect(() => {
-    if (isChangingMonth) return;
+    if (!isInitialLoadedRef.current || isChangingMonth) return;
     const timer = setTimeout(() => {
       saveCurrentMonthExplicitly();
     }, 1200);
     return () => clearTimeout(timer);
-  }, [habitGrid, sleepEntries, monthlyGoal, habitDetailsMap, achievedThisMonth, shouldImprove, habits]);
+  }, [habitGrid, sleepEntries, monthlyGoal, habitDetailsMap, achievedThisMonth, shouldImprove, habits, name, startDate]);
 
   const toggleHabitCell = (hIdx: number, day: number) => {
     // If viewing the current active month, restrict logging strictly to Today (currentRealDay)
